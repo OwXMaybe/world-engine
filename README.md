@@ -207,7 +207,7 @@ RESULTS: 10 / 10 Tests Passed (100%)
 ### Installation
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/world-engine.git
+git clone https://github.com/OwXMaybe/world-engine.git
 
 # Navigate to project directory
 cd world-engine
@@ -241,7 +241,7 @@ The repository includes a GitHub Actions workflow (`.github/workflows/deploy.yml
 1. Push this repository to GitHub.
 2. In your repository settings, navigate to **Settings** $\rightarrow$ **Pages**.
 3. Under **Build and deployment**, select **Source: GitHub Actions**.
-4. Every push to `main` will build, test, and publish the live site to `https://<your-username>.github.io/world-engine/`.
+4. Every push to `main` will build, test, and publish the live site to `https://owxmaybe.github.io/world-engine/`.
 
 ---
 
