@@ -1,8 +1,7 @@
-import { SeededRNG } from '../engine/core/random';
 import { GeoCoords } from '../engine/core/coordinates';
 import { WorldGenerator } from '../engine/world-generator';
 import { getDefaultConfig } from '../engine/presets/planet-presets';
-import { BiomeClassifier, BIOMES } from '../engine/biomes/classification';
+import { BiomeClassifier } from '../engine/biomes/classification';
 
 export interface TestResult {
   name: string;

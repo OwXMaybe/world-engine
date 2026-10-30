@@ -2,8 +2,11 @@ import React, { useState, useCallback } from 'react';
 import { Planet, PlanetGenerationConfig, VisualizationMode, GeographicCell } from './types/planet';
 import { WorldGenerator } from './engine/world-generator';
 import { getDefaultConfig } from './engine/presets/planet-presets';
-import { TopBar } from './components/layout/TopBar';
+import { TopBar, ActiveView } from './components/layout/TopBar';
 import { PlanetCanvas } from './components/planet-viewer/PlanetCanvas';
+import { PlanarMap } from './components/planet-viewer/PlanarMap';
+import { ScientificLaboratories } from './components/laboratories/ScientificLaboratories';
+import { PlanetComparisonLab } from './components/comparison/PlanetComparisonLab';
 import { ParameterPanel } from './components/parameter-panel/ParameterPanel';
 import { InspectorPanel } from './components/inspector/InspectorPanel';
 import { ModeSelector } from './components/visualization-modes/ModeSelector';
@@ -28,6 +31,7 @@ export const App: React.FC = () => {
     return WorldGenerator.generatePlanet(config);
   });
 
+  const [activeView, setActiveView] = useState<ActiveView>('globe');
   const [mode, setMode] = useState<VisualizationMode>('natural');
   const [selectedCell, setSelectedCell] = useState<GeographicCell | null>(null);
   const [isSaved, setIsSaved] = useState(false);
@@ -49,7 +53,6 @@ export const App: React.FC = () => {
     setPlanet(updated);
     setConfig(updated.config);
     if (selectedCell) {
-      // Re-sample selected location with updated sea level
       const updatedCell = WorldGenerator.sampleGeographicCell(updated, selectedCell.latitude, selectedCell.longitude);
       setSelectedCell(updatedCell);
     }
@@ -105,6 +108,8 @@ export const App: React.FC = () => {
       {/* Top Application Bar */}
       <TopBar
         planet={planet}
+        activeView={activeView}
+        onViewChange={setActiveView}
         onSeedChange={handleSeedChange}
         onNameChange={handleNameChange}
         onSave={handleSave}
@@ -124,19 +129,42 @@ export const App: React.FC = () => {
           onRegenerate={() => regeneratePlanet(planet.config)}
         />
 
-        {/* Center: 3D Planetary Canvas with Floating HUD */}
-        <div className="flex-1 relative h-full">
-          <ModeSelector
-            currentMode={mode}
-            onModeChange={setMode}
-            planet={planet}
-          />
-          <PlanetCanvas
-            planet={planet}
-            mode={mode}
-            onSelectCell={setSelectedCell}
-            selectedCell={selectedCell}
-          />
+        {/* Center: Dynamic View Area */}
+        <div className="flex-1 relative h-full overflow-hidden">
+          {/* Mode Selector visible for Globe & Map views */}
+          {(activeView === 'globe' || activeView === 'map') && (
+            <ModeSelector
+              currentMode={mode}
+              onModeChange={setMode}
+              planet={planet}
+            />
+          )}
+
+          {activeView === 'globe' && (
+            <PlanetCanvas
+              planet={planet}
+              mode={mode}
+              onSelectCell={setSelectedCell}
+              selectedCell={selectedCell}
+            />
+          )}
+
+          {activeView === 'map' && (
+            <PlanarMap
+              planet={planet}
+              mode={mode}
+              onSelectCell={setSelectedCell}
+              selectedCell={selectedCell}
+            />
+          )}
+
+          {activeView === 'laboratories' && (
+            <ScientificLaboratories planet={planet} />
+          )}
+
+          {activeView === 'comparison' && (
+            <PlanetComparisonLab currentPlanet={planet} />
+          )}
         </div>
 
         {/* Right Side: Scientific Geographic & Planetary Inspector */}

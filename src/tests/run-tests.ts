@@ -1,5 +1,7 @@
 import { runScientificValidation } from './scientific-validation';
 
+declare const process: { exit: (code: number) => void };
+
 console.log('================================================================');
 console.log('WORLD ENGINE — SCIENTIFIC & MATHEMATICAL VALIDATION SUITE');
 console.log('================================================================\n');
@@ -7,7 +9,7 @@ console.log('================================================================\n'
 const results = runScientificValidation();
 let passedCount = 0;
 
-results.forEach((r, idx) => {
+results.forEach((r) => {
   const status = r.passed ? '✓ PASS' : '✗ FAIL';
   if (r.passed) passedCount++;
   console.log(`[${status}] ${r.name}`);

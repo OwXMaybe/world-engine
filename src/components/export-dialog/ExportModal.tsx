@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Planet } from '../../types/planet';
 import { SurfaceTextureSynthesizer } from '../../engine/rendering/surface-texture';
-import { X, Download, FileText, Image as ImageIcon, Code, Check } from 'lucide-react';
+import { MeshExporter } from '../../engine/export/mesh-exporter';
+import { X, Download, FileText, Image as ImageIcon, Code, Check, Box } from 'lucide-react';
 
 interface ExportModalProps {
   isOpen: boolean;
@@ -47,8 +48,8 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     triggerSuccess('JSON Configuration');
   };
 
-  // 2. Export Map Image (Heightmap, Biome, Climate)
-  const handleExportMapImage = (mode: 'elevation' | 'natural' | 'biome' | 'temperature' | 'precipitation') => {
+  // 2. Export Map Image
+  const handleExportMapImage = (mode: 'elevation' | 'natural' | 'biome') => {
     const canvas = SurfaceTextureSynthesizer.renderTextureCanvas(planet, mode);
     const dataUrl = canvas.toDataURL('image/png');
     const downloadAnchor = document.createElement('a');
@@ -60,7 +61,22 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     triggerSuccess(`${mode.toUpperCase()} Map PNG`);
   };
 
-  // 3. Export HTML Scientific Report
+  // 3. Export 3D Wavefront .OBJ Mesh
+  const handleExportOBJ = () => {
+    const objContent = MeshExporter.exportToOBJ(planet, 'natural', 3.0);
+    const blob = new Blob([objContent], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute('href', url);
+    downloadAnchor.setAttribute('download', `${planet.name.toLowerCase().replace(/\s+/g, '-')}-3d-mesh.obj`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+    URL.revokeObjectURL(url);
+    triggerSuccess('Wavefront 3D OBJ Mesh');
+  };
+
+  // 4. Export HTML Scientific Report
   const handleExportReport = () => {
     const reportHtml = `
 <!DOCTYPE html>
@@ -156,6 +172,23 @@ export const ExportModal: React.FC<ExportModalProps> = ({
           )}
 
           <div className="space-y-3">
+            {/* 3D Wavefront .OBJ Mesh */}
+            <button
+              onClick={handleExportOBJ}
+              className="w-full bg-space-850 hover:bg-space-800 border border-cyan-500/40 hover:border-cyan-400 p-3.5 rounded-xl flex items-center justify-between text-left transition"
+            >
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-space-750 rounded-lg text-cyan-400">
+                  <Box className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="font-bold text-white text-sm">3D Wavefront Mesh (.OBJ)</div>
+                  <div className="text-slate-400 text-[11px]">3D spherical mesh with displaced relief & vertex colors for Blender / Unity / Unreal.</div>
+                </div>
+              </div>
+              <Download className="w-4 h-4 text-cyan-400" />
+            </button>
+
             {/* JSON Config */}
             <button
               onClick={handleExportJSON}

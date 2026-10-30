@@ -4,7 +4,7 @@ import { Planet, VisualizationMode, GeographicCell } from '../../types/planet';
 import { SurfaceTextureSynthesizer } from '../../engine/rendering/surface-texture';
 import { WorldGenerator } from '../../engine/world-generator';
 import { GeoCoords } from '../../engine/core/coordinates';
-import { RotateCw, ZoomIn, ZoomOut, Compass, Sun, Layers } from 'lucide-react';
+import { RotateCw, ZoomIn, ZoomOut, Compass, Sun, Layers, Mountain } from 'lucide-react';
 
 interface PlanetCanvasProps {
   planet: Planet;
@@ -32,6 +32,7 @@ export const PlanetCanvas: React.FC<PlanetCanvasProps> = ({
   const [hoverInfo, setHoverInfo] = useState<{ lat: number; lon: number; elevM: number } | null>(null);
   const [isRotating, setIsRotating] = useState(true);
   const [dayNightActive, setDayNightActive] = useState(planet.config.dayNightCycle);
+  const [relief3D, setRelief3D] = useState(true);
 
   // Mouse interaction state for orbital rotation
   const isDraggingRef = useRef(false);
@@ -65,17 +66,16 @@ export const PlanetCanvas: React.FC<PlanetCanvasProps> = ({
     rendererRef.current = renderer;
 
     // 4. Lighting
-    const ambientLight = new THREE.AmbientLight(0x334155, 0.65);
+    const ambientLight = new THREE.AmbientLight(0x334155, 0.7);
     scene.add(ambientLight);
 
-    const sunLight = new THREE.DirectionalLight(0xffffff, 2.2);
+    const sunLight = new THREE.DirectionalLight(0xffffff, 2.4);
     sunLight.position.set(5, 2, 4);
     scene.add(sunLight);
     sunLightRef.current = sunLight;
 
-    // 5. Planetary Mesh
-    // 64x64 subdivision sphere for smooth geodesic look
-    const planetGeometry = new THREE.SphereGeometry(1.0, 64, 64);
+    // 5. Planetary Mesh with 80x80 subdivision for crisp 3D relief extrusion
+    const planetGeometry = new THREE.SphereGeometry(1.0, 80, 80);
     const planetMaterial = new THREE.MeshStandardMaterial({
       roughness: 0.8,
       metalness: 0.1
@@ -97,7 +97,6 @@ export const PlanetCanvas: React.FC<PlanetCanvasProps> = ({
       fragmentShader: `
         varying vec3 vNormal;
         void main() {
-          // Fresnel rim factor: brightest when normal is perpendicular to view
           float intensity = pow(0.65 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.8);
           vec3 atmosphereColor = vec3(0.2, 0.65, 1.0);
           gl_FragColor = vec4(atmosphereColor, intensity * 0.85);
@@ -112,8 +111,7 @@ export const PlanetCanvas: React.FC<PlanetCanvasProps> = ({
     atmosphereMeshRef.current = atmosphereMesh;
 
     // 7. Clouds Layer
-    const cloudsGeometry = new THREE.SphereGeometry(1.015, 48, 48);
-    // Procedural simple cloud texture
+    const cloudsGeometry = new THREE.SphereGeometry(1.018, 48, 48);
     const cloudCanvas = document.createElement('canvas');
     cloudCanvas.width = 512;
     cloudCanvas.height = 256;
@@ -122,10 +120,10 @@ export const PlanetCanvas: React.FC<PlanetCanvasProps> = ({
       cctx.fillStyle = 'rgba(0,0,0,0)';
       cctx.fillRect(0, 0, 512, 256);
       cctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
-      for (let i = 0; i < 40; i++) {
+      for (let i = 0; i < 45; i++) {
         const cx = Math.random() * 512;
         const cy = Math.random() * 256;
-        const cr = 20 + Math.random() * 50;
+        const cr = 20 + Math.random() * 55;
         const grad = cctx.createRadialGradient(cx, cy, 2, cx, cy, cr);
         grad.addColorStop(0, 'rgba(255, 255, 255, 0.4)');
         grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
@@ -139,7 +137,7 @@ export const PlanetCanvas: React.FC<PlanetCanvasProps> = ({
     const cloudsMaterial = new THREE.MeshStandardMaterial({
       map: cloudTexture,
       transparent: true,
-      opacity: 0.45,
+      opacity: 0.42,
       blending: THREE.AdditiveBlending
     });
     const cloudsMesh = new THREE.Mesh(cloudsGeometry, cloudsMaterial);
@@ -218,6 +216,43 @@ export const PlanetCanvas: React.FC<PlanetCanvasProps> = ({
     material.needsUpdate = true;
   }, [planet, mode]);
 
+  // Apply 3D Vertex Displacement / Relief Extrusion
+  useEffect(() => {
+    if (!planetMeshRef.current) return;
+    const geom = planetMeshRef.current.geometry as THREE.BufferGeometry;
+    const posAttr = geom.attributes.position;
+    const count = posAttr.count;
+
+    for (let i = 0; i < count; i++) {
+      let x = posAttr.getX(i);
+      let y = posAttr.getY(i);
+      let z = posAttr.getZ(i);
+
+      const len = Math.sqrt(x * x + y * y + z * z) || 1;
+      const nx = x / len;
+      const ny = y / len;
+      const nz = z / len;
+
+      let r = 1.0;
+      if (relief3D) {
+        const { lat, lon } = GeoCoords.cartesianToLatLon(nx, ny, nz);
+        const cell = WorldGenerator.sampleGeographicCell(planet, lat, lon);
+        if (cell.isLand) {
+          // Mount peak protrusion
+          r = 1.0 + (cell.elevationMeters / planet.config.maxElevationMeters) * 0.045;
+        } else {
+          // Ocean bathymetric recess
+          r = 1.0 + (cell.elevationMeters / planet.config.oceanDepthMeters) * 0.015;
+        }
+      }
+
+      posAttr.setXYZ(i, nx * r, ny * r, nz * r);
+    }
+
+    posAttr.needsUpdate = true;
+    geom.computeVertexNormals();
+  }, [planet, relief3D]);
+
   // Update Day/Night sunlight behavior
   useEffect(() => {
     if (!sunLightRef.current) return;
@@ -225,7 +260,6 @@ export const PlanetCanvas: React.FC<PlanetCanvasProps> = ({
       sunLightRef.current.intensity = 2.4;
       sunLightRef.current.position.set(4, 1.5, 3);
     } else {
-      // Fixed omni-directional studio lighting
       sunLightRef.current.intensity = 1.4;
       sunLightRef.current.position.set(0, 0, 5);
     }
@@ -239,15 +273,13 @@ export const PlanetCanvas: React.FC<PlanetCanvasProps> = ({
       return;
     }
 
-    // Convert selected (lat, lon) to Cartesian coords
     const [x, y, z] = GeoCoords.latLonToCartesian(selectedCell.latitude, selectedCell.longitude);
-    const pos = new THREE.Vector3(x, y, z).multiplyScalar(1.02);
+    const pos = new THREE.Vector3(x, y, z).multiplyScalar(1.025);
 
-    // Apply planet rotation
     pos.applyEuler(planetMeshRef.current.rotation);
     pinMarkerRef.current.position.copy(pos);
     pinMarkerRef.current.visible = true;
-  }, [selectedCell, sphereRotationRef.current]);
+  }, [selectedCell]);
 
   // Mouse drag & Orbit handlers
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -258,7 +290,6 @@ export const PlanetCanvas: React.FC<PlanetCanvasProps> = ({
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!containerRef.current || !cameraRef.current || !planetMeshRef.current) return;
 
-    // Handle orbital drag
     if (isDraggingRef.current) {
       const deltaX = e.clientX - previousMousePositionRef.current.x;
       const deltaY = e.clientY - previousMousePositionRef.current.y;
@@ -273,7 +304,6 @@ export const PlanetCanvas: React.FC<PlanetCanvasProps> = ({
       return;
     }
 
-    // Handle surface hover raycasting
     const rect = containerRef.current.getBoundingClientRect();
     const mouseX = ((e.clientX - rect.left) / rect.width) * 2 - 1;
     const mouseY = -((e.clientY - rect.top) / rect.height) * 2 + 1;
@@ -284,7 +314,6 @@ export const PlanetCanvas: React.FC<PlanetCanvasProps> = ({
 
     if (intersects.length > 0) {
       const hit = intersects[0];
-      // Invert planet rotation to get point in object space
       const localPoint = hit.point.clone();
       const invRotation = planetMeshRef.current.rotation.clone();
       localPoint.applyEuler(new THREE.Euler(-invRotation.x, -invRotation.y, -invRotation.z, 'ZYX'));
@@ -305,7 +334,6 @@ export const PlanetCanvas: React.FC<PlanetCanvasProps> = ({
     if (!isDraggingRef.current) return;
     isDraggingRef.current = false;
 
-    // Check if it was a click (negligible movement) to select location
     const dist = Math.hypot(
       e.clientX - previousMousePositionRef.current.x,
       e.clientY - previousMousePositionRef.current.y
@@ -404,6 +432,13 @@ export const PlanetCanvas: React.FC<PlanetCanvasProps> = ({
           className={`p-1.5 rounded hover:bg-space-700 transition ${dayNightActive ? 'text-amber-400' : 'text-slate-400'}`}
         >
           <Sun className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => setRelief3D(!relief3D)}
+          title={relief3D ? "Disable 3D Relief Extrusion" : "Enable 3D Relief Extrusion"}
+          className={`p-1.5 rounded hover:bg-space-700 transition ${relief3D ? 'text-emerald-400' : 'text-slate-400'}`}
+        >
+          <Mountain className="w-4 h-4" />
         </button>
       </div>
 

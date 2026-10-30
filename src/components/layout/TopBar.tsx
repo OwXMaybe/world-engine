@@ -1,9 +1,13 @@
 import React, { useState } from 'react';
 import { Planet } from '../../types/planet';
-import { Globe, Dice5, Copy, Check, Save, Download, Sparkles } from 'lucide-react';
+import { Globe, Map, BarChart2, Columns, Dice5, Copy, Check, Save, Download, Sparkles } from 'lucide-react';
+
+export type ActiveView = 'globe' | 'map' | 'laboratories' | 'comparison';
 
 interface TopBarProps {
   planet: Planet;
+  activeView: ActiveView;
+  onViewChange: (view: ActiveView) => void;
   onSeedChange: (newSeedString: string) => void;
   onNameChange: (newName: string) => void;
   onSave: () => void;
@@ -14,6 +18,8 @@ interface TopBarProps {
 
 export const TopBar: React.FC<TopBarProps> = ({
   planet,
+  activeView,
+  onViewChange,
   onSeedChange,
   onNameChange,
   onSave,
@@ -50,7 +56,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   return (
     <header className="h-14 bg-space-900 border-b border-space-700/60 px-5 flex items-center justify-between select-none z-20">
       {/* Brand & Planet Name */}
-      <div className="flex items-center space-x-4">
+      <div className="flex items-center space-x-3">
         <div className="flex items-center space-x-2.5">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-cyan-600 to-emerald-500 flex items-center justify-center shadow-lg shadow-cyan-500/20">
             <Globe className="w-5 h-5 text-white" />
@@ -59,41 +65,76 @@ export const TopBar: React.FC<TopBarProps> = ({
             <h1 className="font-bold text-sm tracking-widest text-white uppercase font-mono">
               World Engine
             </h1>
-            <div className="text-[10px] text-cyan-400 font-mono tracking-wider -mt-0.5">
-              PROCEDURAL PLANETARY SIMULATION
-            </div>
           </div>
         </div>
 
-        <div className="h-5 w-px bg-space-700" />
+        <div className="h-5 w-px bg-space-700 mx-1" />
 
         {/* Planet Name Editor */}
-        <div className="flex items-center space-x-2">
-          <input
-            type="text"
-            value={planet.name}
-            onChange={(e) => onNameChange(e.target.value)}
-            className="bg-space-800 text-white font-medium text-xs px-2.5 py-1 rounded border border-space-700 focus:outline-none focus:border-cyan-400 transition w-36"
-            title="Planet Name"
-          />
-        </div>
+        <input
+          type="text"
+          value={planet.name}
+          onChange={(e) => onNameChange(e.target.value)}
+          className="bg-space-800 text-white font-medium text-xs px-2.5 py-1 rounded border border-space-700 focus:outline-none focus:border-cyan-400 transition w-32"
+          title="Planet Name"
+        />
+      </div>
+
+      {/* Main View Switcher Pills */}
+      <div className="flex items-center space-x-1 bg-space-850 p-1 rounded-xl border border-space-700">
+        <button
+          onClick={() => onViewChange('globe')}
+          className={`flex items-center space-x-1.5 px-3 py-1 rounded-lg text-xs font-medium transition ${
+            activeView === 'globe' ? 'bg-cyan-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-space-800'
+          }`}
+        >
+          <Globe className="w-3.5 h-3.5" />
+          <span>3D Globe</span>
+        </button>
+        <button
+          onClick={() => onViewChange('map')}
+          className={`flex items-center space-x-1.5 px-3 py-1 rounded-lg text-xs font-medium transition ${
+            activeView === 'map' ? 'bg-cyan-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-space-800'
+          }`}
+        >
+          <Map className="w-3.5 h-3.5" />
+          <span>2D Map</span>
+        </button>
+        <button
+          onClick={() => onViewChange('laboratories')}
+          className={`flex items-center space-x-1.5 px-3 py-1 rounded-lg text-xs font-medium transition ${
+            activeView === 'laboratories' ? 'bg-cyan-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-space-800'
+          }`}
+        >
+          <BarChart2 className="w-3.5 h-3.5" />
+          <span>Analytics</span>
+        </button>
+        <button
+          onClick={() => onViewChange('comparison')}
+          className={`flex items-center space-x-1.5 px-3 py-1 rounded-lg text-xs font-medium transition ${
+            activeView === 'comparison' ? 'bg-cyan-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-space-800'
+          }`}
+        >
+          <Columns className="w-3.5 h-3.5" />
+          <span>Comparison</span>
+        </button>
       </div>
 
       {/* Seed Controls */}
       <form onSubmit={handleSeedSubmit} className="flex items-center space-x-2">
-        <div className="flex items-center space-x-1.5 bg-space-800 px-2.5 py-1 rounded-lg border border-space-700">
-          <span className="text-[11px] font-mono text-slate-400 uppercase">Seed:</span>
+        <div className="flex items-center space-x-1.5 bg-space-800 px-2 py-1 rounded-lg border border-space-700">
+          <span className="text-[10px] font-mono text-slate-400 uppercase">Seed:</span>
           <input
             type="text"
             value={seedInput}
             onChange={(e) => setSeedInput(e.target.value)}
-            className="bg-transparent text-cyan-300 font-mono text-xs w-32 focus:outline-none"
+            className="bg-transparent text-cyan-300 font-mono text-xs w-28 focus:outline-none"
             placeholder="Seed string..."
           />
           <button
             type="button"
             onClick={handleCopySeed}
-            className="p-1 hover:bg-space-700 rounded text-slate-400 hover:text-white transition"
+            className="p-0.5 hover:bg-space-700 rounded text-slate-400 hover:text-white transition"
             title="Copy Seed"
           >
             {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
@@ -103,22 +144,22 @@ export const TopBar: React.FC<TopBarProps> = ({
         <button
           type="button"
           onClick={handleRandomSeed}
-          className="flex items-center space-x-1.5 px-2.5 py-1.5 bg-space-800 hover:bg-space-700 border border-space-700 text-slate-200 rounded-lg text-xs font-medium transition"
+          className="flex items-center space-x-1 px-2 py-1 bg-space-800 hover:bg-space-700 border border-space-700 text-slate-200 rounded-lg text-xs font-medium transition"
           title="Roll Random Seed"
         >
           <Dice5 className="w-3.5 h-3.5 text-cyan-400" />
-          <span>Randomize</span>
+          <span>Roll</span>
         </button>
       </form>
 
       {/* Action Buttons */}
-      <div className="flex items-center space-x-3">
+      <div className="flex items-center space-x-2.5">
         <button
           onClick={onToggleSimModal}
           className="flex items-center space-x-1.5 px-3 py-1.5 bg-space-800 hover:bg-space-700 text-amber-300 border border-amber-500/30 rounded-lg text-xs font-medium transition shadow-md"
         >
           <Sparkles className="w-3.5 h-3.5" />
-          <span>Sim Scenarios</span>
+          <span>Scenarios</span>
         </button>
 
         <button
@@ -138,7 +179,7 @@ export const TopBar: React.FC<TopBarProps> = ({
           }`}
         >
           <Save className="w-3.5 h-3.5" />
-          <span>{isSaved ? 'Saved' : 'Save Planet'}</span>
+          <span>{isSaved ? 'Saved' : 'Save'}</span>
         </button>
       </div>
     </header>
